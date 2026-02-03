@@ -9,6 +9,11 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
+class ProductUpdate(BaseModel):
+    barcode: Optional[str] = None
+    name: Optional[str] = None
+    image_path: Optional[str] = None
+
 class Product(ProductBase):
     id: int
 

@@ -8,9 +8,20 @@ from app.models.product_price import ProductPrice
 from app.models.shopping_list import ShoppingList
 from app.models.shopping_list_item import ShoppingListItem
 
+def generate_ean13(code: str) -> str:
+    """Calcula o dígito verificador para transformar 12 dígitos em um EAN-13 válido."""
+    if len(code) != 12:
+        return code.ljust(13, '0')
+    
+    # Lógica de cálculo do dígito verificador EAN-13
+    sum_odd = sum(int(code[i]) for i in range(0, 12, 2))
+    sum_even = sum(int(code[i]) for i in range(1, 12, 2))
+    total = sum_odd + (sum_even * 3)
+    check_digit = (10 - (total % 10)) % 10
+    return f"{code}{check_digit}"
+
 def seed_db():
     db = SessionLocal()
-    # Cria as tabelas se não existirem
     base.Base.metadata.create_all(bind=engine)
 
     try:
@@ -19,73 +30,54 @@ def seed_db():
         if not admin:
             admin = User(email="admin@admin.com", hashed_password="admin", full_name="Ebenezer Admin")
             db.add(admin)
-            db.flush() # Para pegar o ID
-
-        # 2. Mercados (3 unidades)
-        markets = [
-            Market(name="Supermercado Vitória", address="Av. Dante Michelini, Vitória"),
-            Market(name="Carrefour", address="Shopping Vitória"),
-            Market(name="Extra", address="Enseada do Suá")
-        ]
-        for m in markets:
-            if not db.query(Market).filter(Market.name == m.name).first():
-                db.add(m)
-        db.flush()
-
-        # 3. Produtos (10 unidades)
-        products_data = [
-            ("78910001", "Arroz Tio João 5kg"), ("78910002", "Feijão Camil 1kg"),
-            ("78910003", "Açúcar União 1kg"), ("78910004", "Café Pilão 500g"),
-            ("78910005", "Leite Ninho 1L"), ("78910006", "Óleo de Soja 900ml"),
-            ("78910007", "Macarrão Adria 500g"), ("78910008", "Detergente Ypê"),
-            ("78910009", "Sabonete Dove"), ("78910010", "Creme Dental Colgate")
-        ]
-        products = []
-        for barcode, name in products_data:
-            p = db.query(Product).filter(Product.barcode == barcode).first()
-            if not p:
-                p = Product(barcode=barcode, name=name)
-                db.add(p)
-            products.append(p)
-        db.flush()
-
-        # 4. Preços (13 registros)
-        # Distribuindo preços variados entre os mercados
-        existing_markets = db.query(Market).all()
-        prices = [
-            (products[0].id, existing_markets[0].id, 25.90),
-            (products[0].id, existing_markets[1].id, 27.50),
-            (products[1].id, existing_markets[0].id, 8.40),
-            (products[1].id, existing_markets[2].id, 7.90),
-            (products[2].id, existing_markets[1].id, 4.20),
-            (products[4].id, existing_markets[0].id, 5.50),
-            (products[4].id, existing_markets[1].id, 5.80),
-            (products[4].id, existing_markets[2].id, 5.30),
-            (products[5].id, existing_markets[0].id, 6.70),
-            (products[6].id, existing_markets[2].id, 3.90),
-            (products[7].id, existing_markets[1].id, 2.20),
-            (products[8].id, existing_markets[0].id, 3.50),
-            (products[9].id, existing_markets[1].id, 4.80)
-        ]
-        for p_id, m_id, val in prices:
-            exists = db.query(ProductPrice).filter_by(product_id=p_id, market_id=m_id).first()
-            if not exists:
-                db.add(ProductPrice(product_id=p_id, market_id=m_id, price=val))
-
-        # 5. Lista de Compras
-        my_list = db.query(ShoppingList).filter(ShoppingList.name == "Compra do Mês").first()
-        if not my_list:
-            my_list = ShoppingList(name="Compra do Mês", user_id=admin.id)
-            db.add(my_list)
             db.flush()
-            # Adicionando 2 itens iniciais à lista
-            db.add(ShoppingListItem(shopping_list_id=my_list.id, product_id=products[0].id, quantity=1))
-            db.add(ShoppingListItem(shopping_list_id=my_list.id, product_id=products[1].id, quantity=2))
+
+        # 2. Mercados
+        market_names = ["Supermercado Vitória", "Carrefour", "Extra"]
+        markets = []
+        for name in market_names:
+            m = db.query(Market).filter(Market.name == name).first()
+            if not m:
+                m = Market(name=name, address=f"Endereço {name}, Vitória")
+                db.add(m)
+                db.flush()
+            markets.append(m)
+
+        # 3. Produtos com EAN-13 Válidos
+        # Usamos 12 dígitos base e a função gera o 13º (verificador)
+        products_data = [
+            ("789100010001", "Arroz Tio João 5kg"), ("789100010002", "Feijão Camil 1kg"),
+            ("789100010003", "Açúcar União 1kg"), ("789100010004", "Café Pilão 500g"),
+            ("789100010005", "Leite Ninho 1L"), ("789100010006", "Óleo de Soja 900ml"),
+            ("789100010007", "Macarrão Adria 500g"), ("789100010008", "Detergente Ypê"),
+            ("789100010009", "Sabonete Dove"), ("789100010010", "Creme Dental Colgate")
+        ]
+        
+        db_products = []
+        for base_code, name in products_data:
+            valid_barcode = generate_ean13(base_code) # Gera código válido
+            p = db.query(Product).filter(Product.barcode == valid_barcode).first()
+            if not p:
+                p = Product(barcode=valid_barcode, name=name)
+                db.add(p)
+                db.flush()
+            db_products.append(p)
+
+        # 4. Preços Variados
+        import random
+        for p in db_products:
+            # Adiciona preços em 1 ou 2 mercados aleatórios
+            chosen_markets = random.sample(markets, random.randint(1, 2))
+            for m in chosen_markets:
+                exists = db.query(ProductPrice).filter_by(product_id=p.id, market_id=m.id).first()
+                if not exists:
+                    price_val = round(random.uniform(3.50, 28.90), 2)
+                    db.add(ProductPrice(product_id=p.id, market_id=m.id, price=price_val))
 
         db.commit()
-        print("Database seeded successfully!")
+        print("Database seeded with VALID EAN-13 codes!")
     except Exception as e:
-        print(f"Error seeding database: {e}")
+        print(f"Error: {e}")
         db.rollback()
     finally:
         db.close()

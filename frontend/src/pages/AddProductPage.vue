@@ -15,14 +15,33 @@
 
       <BarcodeScanner @detected="onProductDetected" />
 
+      <div v-if="scannedBarcode" class="flex justify-center q-mt-sm">
+        <q-btn 
+          flat 
+          color="grey-7" 
+          icon="refresh" 
+          label="Clear / Rescan" 
+          @click="resetPage" 
+        />
+      </div>
+
       <q-card v-if="scannedBarcode || productExists" flat bordered>
         <q-card-section class="q-gutter-md">
           
+          <div :class="isEanValid ? 'text-positive' : 'text-negative'" class="text-subtitle2">
+            Barcode: {{ scannedBarcode }} 
+            <q-icon :name="isEanValid ? 'check_circle' : 'warning'" />
+            <span v-if="!isEanValid" class="q-ml-xs">(Invalid EAN-13 check digit)</span>
+          </div>
+
           <q-input
             v-model="productForm.name"
             label="Product Name *"
             outlined
-            :rules="[val => !!val || 'Name is required']"
+            :rules="[
+              val => !!val || 'Name is required',
+              () => isEanValid || 'Check digit is invalid.'
+            ]"
             :disable="productExists"
           />
 
@@ -56,6 +75,7 @@
             color="primary"
             class="full-width"
             :loading="isSaving"
+            :disable="!isEanValid"
           />
           </q-card-section>
       </q-card>
@@ -64,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
@@ -74,12 +94,10 @@ import { useRoute } from 'vue-router'
 const $q = useQuasar()
 const authStore = useAuthStore()
 
-// State for Lists
+// State
 const userLists = ref([])
 const selectedList = ref(null)
 const loadingLists = ref(false)
-
-// State for Form
 const scannedBarcode = ref('')
 const productExists = ref(false)
 const isSaving = ref(false)
@@ -94,13 +112,21 @@ const productForm = ref({
 
 const route = useRoute()
 
-/**
- * Fetch initial data for Vitoria environment
- */
+// Validação EAN-13
+const isEanValid = computed(() => {
+  const code = scannedBarcode.value
+  if (!code || code.length !== 13) return false
+  
+  const digits = code.split('').map(Number)
+  const lastDigit = digits.pop()
+  const sum = digits.reduce((acc, digit, idx) => acc + (idx % 2 === 0 ? digit : digit * 3), 0)
+  const calculatedCheckDigit = (10 - (sum % 10)) % 10
+  return lastDigit === calculatedCheckDigit
+})
+
 async function loadInitialData() {
   loadingLists.value = true
   try {
-    // Fetch user lists and available markets in parallel
     const [listsRes, marketsRes] = await Promise.all([
       api.get(`/lists/${authStore.userId}`),
       api.get('/markets/')
@@ -118,9 +144,6 @@ async function loadInitialData() {
   }
 }
 
-/**
- * Triggered by the BarcodeScanner component
- */
 function onProductDetected(data) {
   scannedBarcode.value = data.barcode || data.product.barcode
   productExists.value = data.exists
@@ -136,28 +159,14 @@ function onProductDetected(data) {
 
 const myForm = ref(null)
 
-/**
- * Saves Product (if new), Price, and adds to Shopping List
- */
 async function saveAll() {
-  // Trigger Quasar internal validation
   const success = await myForm.value.validate()
-  
-  if (!success) {
-    $q.notify({ color: 'negative', message: 'Please correct the errors before saving' })
-    return
-  }
-  
-  if (!selectedList.value) {
-    $q.notify({ color: 'warning', message: 'Please select a shopping list' })
-    return
-  }
+  if (!success || !isEanValid.value || !selectedList.value) return
 
   isSaving.value = true
   try {
     let productId = productForm.value.product_id
 
-    // 1. If product is new, create it first
     if (!productExists.value) {
       const prodRes = await api.post('/products/', {
         name: productForm.value.name,
@@ -166,7 +175,6 @@ async function saveAll() {
       productId = prodRes.data.id
     }
 
-    // 2. Save the price entry
     await api.post('/prices/', {
       product_id: productId,
       market_id: productForm.value.market_id,
@@ -174,7 +182,6 @@ async function saveAll() {
       user_id: authStore.userId
     })
 
-    // 3. Link product to the selected Shopping List
     await api.post('/lists/items', {
       shopping_list_id: selectedList.value.id,
       product_id: productId,
@@ -183,14 +190,16 @@ async function saveAll() {
 
     $q.notify({ color: 'positive', message: 'Item added successfully!' })
     resetPage()
-  } catch (error) {
-    console.error('Failed to save all (product, price and shoppinglist', error)
+  } catch {
     $q.notify({ color: 'negative', message: 'Error saving entry' })
   } finally {
     isSaving.value = false
   }
 }
 
+/**
+ * Limpa o scanner e o formulário
+ */
 function resetPage() {
   scannedBarcode.value = ''
   productExists.value = false

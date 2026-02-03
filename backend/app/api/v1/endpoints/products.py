@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.db.session import get_db
 from app.models.product import Product as ProductModel
-from app.schemas.product import Product, ProductCreate
+from app.schemas.product import Product, ProductCreate, ProductUpdate
 
 router = APIRouter()
 
@@ -67,3 +67,25 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
             status_code=400, 
             detail="Cannot delete product."
         )
+
+@router.put("/{product_id}", response_model=Product)
+def update_product(
+    product_id: int, 
+    product_in: ProductUpdate, 
+    db: Session = Depends(get_db)
+):
+    # CORREÇÃO: Usar ProductModel (SQLAlchemy) e não Product (Schema)
+    db_product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    
+    if not db_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # CORREÇÃO: Usar model_dump para Pydantic v2
+    update_data = product_in.model_dump(exclude_unset=True)
+    
+    for field, value in update_data.items():
+        setattr(db_product, field, value)
+    
+    db.commit()
+    db.refresh(db_product)
+    return db_product
