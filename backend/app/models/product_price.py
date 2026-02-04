@@ -10,7 +10,7 @@ class ProductPrice(Base):
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     market_id = Column(Integer, ForeignKey("markets.id", ondelete="CASCADE"), nullable=False)
     price = Column(Float, nullable=False)
-    updated_at = Column(DateTime(timezone=True), index=True, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), index=True, server_default=func.now())
 
     # Relationships
     product = relationship("Product", back_populates="prices")

@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h5 q-mb-md">Add Product & Price</div>
+    <div class="text-h5 q-mb-md">Add Product</div>
 
     <q-form ref="myForm" @submit="saveAll" class="q-gutter-md">
       
@@ -8,12 +8,13 @@
         v-model="selectedList"
         :options="userLists"
         option-label="name"
-        label="Select your Shopping List *"
+        label="Select your Shopping List (Optional)"
         outlined
-        :rules="[val => !!val || 'You must select a list']"
+        clearable
+        class="q-mb-md"
       />
 
-      <BarcodeScanner @detected="onProductDetected" />
+      <BarcodeScanner ref="scannerRef" @detected="onProductDetected" />
 
       <div v-if="scannedBarcode" class="flex justify-center q-mt-sm">
         <q-btn 
@@ -52,32 +53,29 @@
             option-label="name"
             emit-value
             map-options
-            label="Market *"
+            label="Market (Optional)"
             outlined
-            :rules="[val => !!val || 'Market is required']"
+            clearable
           />
 
           <q-input
             v-model.number="productForm.price"
-            label="Price (R$) *"
+            label="Price (Optional)"
             type="number"
             step="0.01"
             outlined
-            :rules="[
-              val => (val !== null && val !== '') || 'Price is required',
-              val => val > 0 || 'Price must be greater than zero'
-            ]"
+            clearable
           />
 
           <q-btn
-            label="Save Entry"
+            label="Save Product"
             type="submit" 
             color="primary"
             class="full-width"
             :loading="isSaving"
             :disable="!isEanValid"
           />
-          </q-card-section>
+        </q-card-section>
       </q-card>
     </q-form>
   </q-page>
@@ -124,6 +122,10 @@ const isEanValid = computed(() => {
   return lastDigit === calculatedCheckDigit
 })
 
+const scannerRef = ref(null)
+
+const myForm = ref(null)
+
 async function loadInitialData() {
   loadingLists.value = true
   try {
@@ -157,16 +159,15 @@ function onProductDetected(data) {
   }
 }
 
-const myForm = ref(null)
-
 async function saveAll() {
   const success = await myForm.value.validate()
-  if (!success || !isEanValid.value || !selectedList.value) return
+  if (!success) return
 
   isSaving.value = true
   try {
     let productId = productForm.value.product_id
 
+    // 1. Criação/Identificação do Produto
     if (!productExists.value) {
       const prodRes = await api.post('/products/', {
         name: productForm.value.name,
@@ -175,36 +176,68 @@ async function saveAll() {
       productId = prodRes.data.id
     }
 
-    await api.post('/prices/', {
-      product_id: productId,
-      market_id: productForm.value.market_id,
-      price: productForm.value.price,
-      user_id: authStore.userId
-    })
+    // 2. Preço (Opcional)
+    if (productForm.value.market_id && productForm.value.price > 0) {
+      await api.post('/prices/', {
+        product_id: productId,
+        market_id: productForm.value.market_id,
+        price: productForm.value.price,
+        user_id: authStore.userId
+      })
+    }
 
-    await api.post('/lists/items', {
-      shopping_list_id: selectedList.value.id,
-      product_id: productId,
-      quantity: 1
-    })
+    // 3. Lista (Opcional) - Protegido para não disparar erro no Catch principal
+    if (selectedList.value?.id) {
+      try {
+        await api.post('/lists/items', {
+          shopping_list_id: selectedList.value.id,
+          product_id: productId,
+          quantity: 1
+        })
+      } catch (listErr) {
+        console.warn("Product saved, but failed to add to list", listErr)
+      }
+    }
 
-    $q.notify({ color: 'positive', message: 'Item added successfully!' })
+    $q.notify({ color: 'positive', message: 'Product saved successfully!' })
+    
+    // IMPORTANTE: Limpeza total
     resetPage()
-  } catch {
-    $q.notify({ color: 'negative', message: 'Error saving entry' })
+
+  } catch (error) {
+    console.error(error)
+    $q.notify({ color: 'negative', message: 'Failed to save product' })
   } finally {
     isSaving.value = false
   }
 }
 
-/**
- * Limpa o scanner e o formulário
- */
 function resetPage() {
+  // 1. Limpa a variável que controla a exibição do card
   scannedBarcode.value = ''
+  
+  // 2. Reseta o formulário
+  productForm.value = {
+    name: '',
+    price: 0,
+    market_id: null,
+    product_id: null
+  }
+  
   productExists.value = false
-  productForm.value = { name: '', market_id: null, price: 0, product_id: null }
+  
+  // 3. Se o seu componente BarcodeScanner tiver um método de reset, 
+  if (scannerRef.value) {
+    scannerRef.value.reset()
+  }
+
+  // 4. Limpa validações do formulário
+  if (myForm.value) {
+    myForm.value.resetValidation()
+  }
 }
+
+  
 
 onMounted(loadInitialData)
 </script>

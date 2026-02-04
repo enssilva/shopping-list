@@ -10,6 +10,10 @@ class MarketBase(BaseModel):
 class MarketCreate(MarketBase):
     pass # For now, we only need name and address
 
+class MarketUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+
 # Properties to return to the client (Response)
 class Market(MarketBase):
     id: int

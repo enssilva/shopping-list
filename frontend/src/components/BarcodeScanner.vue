@@ -130,6 +130,17 @@ const stopScanner = async () => {
   }
 }
 
+// No final do <script setup> do BarcodeScanner.vue
+const reset = () => {
+  manualBarcode.value = ''
+  if (isScanning.value) {
+    stopScanner()
+  }
+}
+
+// Expõe a função para ser usada via ref pela página pai
+defineExpose({ reset })
+
 onBeforeUnmount(async () => {
   if (isScanning.value && html5QrcodeScanner) {
     await html5QrcodeScanner.clear()
