@@ -16,8 +16,14 @@ services:
       - "5432:5432" # External access for DB tools (DBeaver, etc.)
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d/ # Mapeia a pasta de scripts
     networks:
       - grocery_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # -------------------------------------------------------------------------
   # BACKEND (FastAPI)
@@ -36,7 +42,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
     depends_on:
-      - db
+      db:
+        condition: service_healthy # O backend só inicia quando o db passar no teste acima
     networks:
       - grocery_network
 

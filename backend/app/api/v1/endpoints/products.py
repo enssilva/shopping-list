@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from typing import List
 from app.db.session import get_db
 from app.models.product import Product as ProductModel
 from app.schemas.product import Product, ProductCreate, ProductUpdate
+from app.api.deps import get_current_user
+from app.models.user import User as UserModel
 
 router = APIRouter()
 
 @router.post("/", response_model=Product)
-def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
+def create_product(product_in: ProductCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     # Check if barcode already exists
     existing = db.query(ProductModel).filter(ProductModel.barcode == product_in.barcode).first()
     if existing:
@@ -21,21 +24,35 @@ def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
     return new_product
 
 @router.get("/", response_model=List[Product])
-def get_all_products(db: Session = Depends(get_db)):
+def get_all_products(db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     return db.query(ProductModel).all()
 
 @router.get("/search", response_model=List[Product])
-def search_products(q: str, db: Session = Depends(get_db)):
+def search_products(q: str, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Search products by name or barcode for quick adding.
     """
-    return db.query(ProductModel).filter(
-        (ProductModel.name.ilike(f"%{q}%")) | 
-        (ProductModel.barcode.ilike(f"%{q}%"))
-    ).limit(10).all()
+    if not q:
+        return []
+    # 1. Tratamos o termo para o formato de busca (adicionando :* para busca parcial)
+    # Transformamos "feijao preto" em "feijao:* & preto:*"
+    search_query = " & ".join([f"{word}:*" for word in q.split()])
+
+    products = db.query(ProductModel).filter(
+        or_(
+            # Busca FTS usando a função imutável
+            func.to_tsvector('portuguese', func.unaccent_immutable(ProductModel.name)).bool_op('@@')(
+                func.to_tsquery('portuguese', func.unaccent_immutable(search_query))
+            ),
+            # Busca por código de barras (mantida como fallback)
+            ProductModel.barcode.ilike(f"%{q}%")
+        )
+    ).limit(15).all()
+
+    return products
 
 @router.get("/barcode/{barcode}", response_model=Product)
-def get_product_by_barcode(barcode: str, db: Session = Depends(get_db)):
+def get_product_by_barcode(barcode: str, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Search for a product using its barcode string.
     """
@@ -48,7 +65,7 @@ def get_product_by_barcode(barcode: str, db: Session = Depends(get_db)):
     return product
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(product_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Permanently removes a product from the database.
     """
@@ -72,7 +89,8 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
 def update_product(
     product_id: int, 
     product_in: ProductUpdate, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
 ):
     # CORREÇÃO: Usar ProductModel (SQLAlchemy) e não Product (Schema)
     db_product = db.query(ProductModel).filter(ProductModel.id == product_id).first()

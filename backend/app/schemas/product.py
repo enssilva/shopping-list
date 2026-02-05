@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from app.schemas.product_price import ProductPrice
 
 class ProductBase(BaseModel):
     barcode: str
@@ -16,6 +17,7 @@ class ProductUpdate(BaseModel):
 
 class Product(ProductBase):
     id: int
+    prices: List[ProductPrice] = []
 
     class Config:
         from_attributes = True

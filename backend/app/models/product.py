@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Index, text
 from sqlalchemy.orm import relationship
 from app.db.session import Base
 
@@ -15,4 +15,13 @@ class Product(Base):
         "ProductPrice", 
         back_populates="product", 
         cascade="all, delete-orphan"
+    )
+
+    # Índice atualizado para usar a função imutável
+    __table_args__ = (
+        Index(
+            "idx_product_fts",
+            text("to_tsvector('portuguese', unaccent_immutable(name))"), # Alterado aqui
+            postgresql_using="gin",
+        ),
     )

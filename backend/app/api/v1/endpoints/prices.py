@@ -6,11 +6,13 @@ from typing import List
 from app.db.session import get_db
 from app.models.product_price import ProductPrice as PriceModel
 from app.schemas.product_price import ProductPrice, ProductPriceUpdate
+from app.api.deps import get_current_user
+from app.models.user import User as UserModel
 
 router = APIRouter()
 
 @router.post("/", response_model=ProductPrice)
-def update_or_create_price(price_in: ProductPriceUpdate, db: Session = Depends(get_db)):
+def update_or_create_price(price_in: ProductPriceUpdate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Update a product price if it exists for a specific market, 
     otherwise create a new record.
@@ -58,16 +60,16 @@ def update_or_create_price(price_in: ProductPriceUpdate, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[ProductPrice])
-def list_all_prices(db: Session = Depends(get_db)):
+def list_all_prices(db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     return db.query(PriceModel).all()
 
 @router.get("/product/{product_id}", response_model=List[ProductPrice])
-def get_prices_by_product(product_id: int, db: Session = Depends(get_db)):
+def get_prices_by_product(product_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     # Incluindo o market para evitar 'Unknown Market' no front
     return db.query(PriceModel).options(joinedload(PriceModel.market)).filter(PriceModel.product_id == product_id).all()
 
 @router.get("/history/{product_id}", response_model=List[ProductPrice])
-def get_price_history(product_id: int, db: Session = Depends(get_db)):
+def get_price_history(product_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     return db.query(PriceModel).options(
         joinedload(PriceModel.market)
     ).filter(PriceModel.product_id == product_id).order_by(PriceModel.updated_at.desc()).all()

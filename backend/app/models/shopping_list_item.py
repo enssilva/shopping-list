@@ -9,7 +9,7 @@ class ShoppingListItem(Base):
     shopping_list_id = Column(Integer, ForeignKey("shopping_lists.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, default=1)
-    is_checked = Column(Boolean, default=False)
+    is_checked = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     shopping_list = relationship("ShoppingList", back_populates="items")

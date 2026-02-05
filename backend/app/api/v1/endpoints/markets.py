@@ -4,15 +4,17 @@ from typing import List
 from app.db.session import get_db
 from app.models.market import Market as MarketModel
 from app.schemas.market import Market, MarketCreate, MarketUpdate
+from app.api.deps import get_current_user
+from app.models.user import User as UserModel
 
 router = APIRouter()
 
 @router.get("/", response_model=List[Market])
-def read_markets(db: Session = Depends(get_db)):
+def read_markets(db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     return db.query(MarketModel).all()
 
 @router.post("/", response_model=Market)
-def create_market(market_in: MarketCreate, db: Session = Depends(get_db)):
+def create_market(market_in: MarketCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     new_market = MarketModel(**market_in.model_dump())
     db.add(new_market)
     db.commit()
@@ -20,7 +22,7 @@ def create_market(market_in: MarketCreate, db: Session = Depends(get_db)):
     return new_market
 
 @router.put("/{market_id}", response_model=Market)
-def update_market(market_id: int, market_in: MarketUpdate, db: Session = Depends(get_db)):
+def update_market(market_id: int, market_in: MarketUpdate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     db_market = db.query(MarketModel).filter(MarketModel.id == market_id).first()
     if not db_market:
         raise HTTPException(status_code=404, detail="Market not found")
@@ -34,7 +36,7 @@ def update_market(market_id: int, market_in: MarketUpdate, db: Session = Depends
     return db_market
 
 @router.delete("/{market_id}")
-def delete_market(market_id: int, db: Session = Depends(get_db)):
+def delete_market(market_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Remove a market and all its associated price history.
     """

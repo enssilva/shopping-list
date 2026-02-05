@@ -13,6 +13,10 @@ class ShoppingListItemBase(BaseModel):
 class ShoppingListItemCreate(ShoppingListItemBase):
     shopping_list_id: int
 
+class ShoppingListItemUpdate(BaseModel):
+    quantity: Optional[int] = None
+    is_checked: Optional[bool] = None
+
 class ShoppingListItem(ShoppingListItemBase):
     id: int
     product: Product

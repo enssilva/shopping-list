@@ -4,14 +4,18 @@ from typing import List
 from app.db.session import get_db
 from app.models.shopping_list import ShoppingList as ListModel
 from app.models.shopping_list_item import ShoppingListItem as ItemModel
+from app.models.product import Product as ProductModel
+from app.models.product_price import ProductPrice as ProductPriceModel
+from app.models.user import User as UserModel
 from app.schemas import shopping_list as schemas
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
 # --- List Management ---
 
 @router.post("/", response_model=schemas.ShoppingList)
-def create_shopping_list(list_in: schemas.ShoppingListCreate, db: Session = Depends(get_db)):
+def create_shopping_list(list_in: schemas.ShoppingListCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Create a new shopping list for a specific user.
     """
@@ -29,12 +33,15 @@ def get_user_shopping_lists(user_id: int, db: Session = Depends(get_db)):
     return db.query(ListModel).filter(ListModel.user_id == user_id).all()
 
 @router.get("/details/{list_id}", response_model=schemas.ShoppingList)
-def get_list_details(list_id: int, db: Session = Depends(get_db)):
+def get_list_details(list_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Retrieve details of a specific shopping list including its items.
     """
     db_list = db.query(ListModel).options(
-        joinedload(ListModel.items).joinedload(ItemModel.product)
+        joinedload(ListModel.items)
+            .joinedload(ItemModel.product)
+            .joinedload(ProductModel.prices) # Adicione este carregamento
+            .joinedload(ProductPriceModel.market) # E os detalhes do mercado
     ).filter(ListModel.id == list_id).first()
     if not db_list:
         raise HTTPException(status_code=404, detail="List not found")
@@ -43,7 +50,7 @@ def get_list_details(list_id: int, db: Session = Depends(get_db)):
 # --- Item Management ---
 
 @router.post("/items", response_model=schemas.ShoppingListItem)
-def add_item_to_list(item_in: schemas.ShoppingListItemCreate, db: Session = Depends(get_db)):
+def add_item_to_list(item_in: schemas.ShoppingListItemCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     """
     Add a product to an existing shopping list.
     """
@@ -56,8 +63,9 @@ def add_item_to_list(item_in: schemas.ShoppingListItemCreate, db: Session = Depe
 @router.patch("/items/{item_id}", response_model=schemas.ShoppingListItem)
 def update_item_quantity(
     item_id: int, 
-    quantity: int, 
-    db: Session = Depends(get_db)
+    item_update: schemas.ShoppingListItemUpdate, # Usando um schema para os dados
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
 ):
     """
     Update the quantity of a specific item in the shopping list.
@@ -66,10 +74,17 @@ def update_item_quantity(
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    if quantity < 1:
+    # Converte os dados enviados para um dicionário
+    update_data = item_update.model_dump(exclude_unset=True)
+
+    # Validação de quantidade mínima se ela for enviada
+    if "quantity" in update_data and update_data["quantity"] < 1:
         raise HTTPException(status_code=400, detail="Quantity must be at least 1")
 
-    db_item.quantity = quantity
+    # Atualiza dinamicamente os campos (quantity, is_checked, etc.)
+    for key, value in update_data.items():
+        setattr(db_item, key, value)
+
     db.commit()
     db.refresh(db_item)
     return db_item
@@ -77,7 +92,8 @@ def update_item_quantity(
 @router.delete("/items/{item_id}")
 def delete_shopping_list_item(
     item_id: int, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
 ):
     """
     Remove a specific item from a shopping list.

@@ -1,7 +1,6 @@
 import { defineRouter } from '#q-app/wrappers'
 import { createRouter, createMemoryHistory, createWebHistory, createWebHashHistory } from 'vue-router'
 import routes from './routes'
-import { useAuthStore } from 'src/stores/auth' // Importe seu store
 
 /*
  * If not building with SSR mode, you can
@@ -27,18 +26,18 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE)
   })
 
-  // A Lógica de redirecionamento entra aqui
   Router.beforeEach((to, from, next) => {
-    const authStore = useAuthStore()
+    const isAuthenticated = !!localStorage.getItem('access_token') // Verificação direta
 
-    // Se a rota exige login e o usuário não está autenticado
-    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    if (to.meta.requiresAuth && !isAuthenticated) {
       next({
         path: '/login',
         query: { redirect: to.fullPath }
-      }) // Força o login
+      })
+    } else if (to.path === '/login' && isAuthenticated) {
+      next('/') // Se já tem token, não precisa logar de novo
     } else {
-      next() // Permite a passagem
+      next()
     }
   })
 
