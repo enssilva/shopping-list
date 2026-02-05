@@ -1,5 +1,18 @@
 <template>
   <q-page class="q-pa-md">
+    <div class="row items-center q-mb-md">
+      <q-btn 
+        flat 
+        round 
+        dense 
+        icon="arrow_back" 
+        @click="goBack" 
+        class="q-mr-sm" 
+      >
+        <q-tooltip>Go Back</q-tooltip>
+      </q-btn>
+      <div class="text-h5">Add Product</div>
+    </div>
     <div class="text-h5 q-mb-md">Add Product</div>
 
     <q-form ref="myForm" @submit="saveAll" class="q-gutter-md">
@@ -82,12 +95,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 import BarcodeScanner from 'src/components/BarcodeScanner.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router' // Adicione o hook
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -109,6 +122,7 @@ const productForm = ref({
 })
 
 const route = useRoute()
+const router = useRouter()
 
 // Validação EAN-13
 const isEanValid = computed(() => {
@@ -125,6 +139,24 @@ const isEanValid = computed(() => {
 const scannerRef = ref(null)
 
 const myForm = ref(null)
+
+// Função que verifica se o formulário foi tocado
+const hasUnsavedChanges = computed(() => {
+  // Retorna verdadeiro se o nome foi preenchido ou se um preço foi digitado
+  return (scannedBarcode.value && scannedBarcode.value.length > 0) ||
+         productForm.value.name.length > 0 || 
+         (productForm.value.price > 0 && productForm.value.price !== null) ||
+         productForm.value.market_id !== null
+})
+
+// Função para o alerta nativo do navegador (Refresh/Fechar aba)
+const handleBeforeUnload = (event) => {
+  if (hasUnsavedChanges.value && !isSaving.value) {
+    // Cancela o evento e mostra o alerta padrão do navegador
+    event.preventDefault()
+    event.returnValue = '' 
+  }
+}
 
 async function loadInitialData() {
   loadingLists.value = true
@@ -212,6 +244,46 @@ async function saveAll() {
   }
 }
 
+onMounted(() => {
+  loadInitialData()
+  // Ativa a proteção do navegador ao montar a página
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+// Interceptador de navegação
+onBeforeRouteLeave((to, from, next) => {
+  // Se houver mudanças e não estivermos no processo de salvar...
+  if (hasUnsavedChanges.value && !isSaving.value) {
+    $q.dialog({
+      title: 'Unsaved Changes',
+      message: 'You have started filling out the product data. Are you sure you want to leave and discard these changes?',
+      // cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Discard',
+        color: 'negative',
+        flat: true
+      },
+      cancel: {
+        label: 'Stay',
+        color: 'primary',
+        flat: true
+      }
+    }).onOk(() => {
+      next() // Permite a navegação
+    }).onCancel(() => {
+      next(false) // Cancela a navegação
+    })
+  } else {
+    next() // Navega normalmente se estiver vazio ou salvando
+  }
+})
+
+onBeforeUnmount(() => {
+  // Remove a proteção ao sair para não afetar outras páginas
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
 function resetPage() {
   // 1. Limpa a variável que controla a exibição do card
   scannedBarcode.value = ''
@@ -237,7 +309,9 @@ function resetPage() {
   }
 }
 
-  
+function goBack() {
+  // Navega para a página anterior no histórico do navegador
+  router.back() 
+}
 
-onMounted(loadInitialData)
 </script>

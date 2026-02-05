@@ -1,17 +1,20 @@
 import { defineStore } from 'pinia'
 import { AuthService } from 'src/services/AuthService'
+// Importação removida do corpo da função para evitar erros de escopo
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    // Initialize user from localStorage if available
+    // Tenta recuperar o usuário já convertido em objeto
     user: JSON.parse(localStorage.getItem('user')) || null,
     loading: false
   }),
 
   getters: {
     isAuthenticated: (state) => !!state.user,
+    token: (state) => state.user?.access_token,
     userId: (state) => state.user?.id,
-    userName: (state) => state.user?.full_name
+    // Ajustado para garantir que pega o nome correto para o sidebar
+    userName: (state) => state.user?.full_name || state.user?.name || 'User'
   },
 
   actions: {
@@ -20,7 +23,8 @@ export const useAuthStore = defineStore('auth', {
       try {
         const userData = await AuthService.login({ email, password })
         this.user = userData
-        // Persist user data in the browser
+        
+        // Persistência segura
         localStorage.setItem('user', JSON.stringify(userData))
         return userData
       } catch (error) {
@@ -34,8 +38,10 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.user = null
       localStorage.removeItem('user')
-      // Redirect to login page if necessary
-      this.router.push('/login')
+      
+      // Em vez de usar this.router (que pode falhar), 
+      // o redirecionamento deve ser feito no componente ou index.js
+      // ou use a solução global do Quasar se configurada.
     }
   }
 })

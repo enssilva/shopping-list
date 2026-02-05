@@ -7,7 +7,7 @@ class ShoppingListItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     shopping_list_id = Column(Integer, ForeignKey("shopping_lists.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, default=1)
     is_checked = Column(Boolean, default=False)
 
