@@ -23,5 +23,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia o restante do código para dentro do container
 COPY . .
 
-# A porta que o FastAPI usa (apenas informativo, quem define é o docker-compose)
+# Dá permissão ao script de entrada
+RUN chmod +x /app/entrypoint.sh
+
+# Define o entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 EXPOSE 8000

@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User as UserModel
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.security import settings
 
 # Define onde o FastAPI deve procurar o token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
@@ -17,7 +17,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     )
     try:
         # Decodifica o token enviado pelo Quasar
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_email: str = payload.get("sub")
         if user_email is None:
             raise credentials_exception

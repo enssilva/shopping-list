@@ -15,6 +15,9 @@ RUN npm install --legacy-peer-deps --ignore-scripts
 # 3. Agora copiamos o restante dos arquivos (quasar.config.js, etc)
 COPY . .
 
+# Garante que binários nativos funcionem no Linux Alpine [cite: 2, 3]
+RUN npm rebuild
+
 # 4. Agora que os arquivos existem, rodamos o prepare manualmente
 RUN quasar prepare
 
@@ -23,3 +26,4 @@ ENV PATH /app/node_modules/.bin:$PATH
 EXPOSE 9000
 
 CMD ["quasar", "dev", "-m", "pwa", "--port", "9000", "--hostname", "0.0.0.0"]
+# CMD ["quasar", "build", "-m", "pwa", "--port", "9000", "--hostname", "0.0.0.0"]

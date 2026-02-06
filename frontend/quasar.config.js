@@ -57,7 +57,31 @@ export default defineConfig((/* ctx */) => {
       // polyfillModulePreload: true,
       // distDir
 
-      // extendViteConf (viteConf) {},
+      extendViteConf (viteConf) {
+        viteConf.server = {
+          // Garante que o servidor Vite escute em todos os IPs dentro do container
+          host: '0.0.0.0', 
+          port: 9000,
+          
+          // Configuração de Polling para Docker em Windows/Linux
+          watch: {
+            usePolling: true,
+            interval: 1000
+          },
+
+          // Configuração do HMR para funcionar atrás do Nginx
+          hmr: {
+            protocol: 'ws',
+            host: 'localhost',
+            clientPort: 80, // O navegador conecta na porta 80
+            // port: 9000 // O Vite escuta na 9000 (padrão, não precisa forçar aqui se o server.port já for 9000)
+          },
+          
+          // Permite que o Vite aceite conexões vindas do Nginx sem bloquear por segurança
+          cors: { origin: '*' },
+          allowedHosts: 'all' // Vite 5+ precisa disto para não bloquear o Host "localhost" vindo do proxy
+        }
+      },
       // viteVuePluginOptions: {},
       
       vitePlugins: [
@@ -72,17 +96,10 @@ export default defineConfig((/* ctx */) => {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      // https: true,
       port: 9000,
-      host: '0.0.0.0', // Required for Docker to allow external access
-      open: false,     // Disable auto-open browser (it won't work inside Docker)
-      timing: false    // Prevents some polling issues in Docker
-      // proxy: {
-      //   '/api': {
-      //     target: 'http://backend:8000', // Nome do serviço no docker-compose
-      //     changeOrigin: true
-      //   }
-      // }
+      host: '0.0.0.0',
+      open: false,
+      // Removemos as configs de HMR daqui para evitar conflito com o extendViteConf
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework

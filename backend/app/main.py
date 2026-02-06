@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal, engine
 from app.models.user import User as UserModel
 from passlib.context import CryptContext
+from sqlalchemy.exc import IntegrityError
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,6 +30,8 @@ def create_admin_user():
             db.add(new_admin)
             db.commit()
             print("Usuário admin@admin.com criado com sucesso!")
+    except IntegrityError:
+        db.rollback() # Ignora se outro worker já criou
     except Exception as e:
         print(f"Erro ao criar admin: {e}")
     finally:
@@ -37,7 +40,7 @@ def create_admin_user():
 
 # This command creates the tables in the database if they don't exist
 # Note: In production, we usually use Alembic migrations instead of this
-base.Base.metadata.create_all(bind=engine)
+# base.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Grocery Shopping List API",
@@ -68,8 +71,8 @@ def read_root():
     return {"message": "Grocery API is running smoothly"}
 
 # Executa ao iniciar o servidor
-@app.on_event("startup")
-def startup_event():
-    # Cria as tabelas se não existirem (incluindo o índice FTS se configurado)
-    # Base.metadata.create_all(bind=engine) 
-    create_admin_user()
+# @app.on_event("startup")
+# def startup_event():
+#     # Cria as tabelas se não existirem (incluindo o índice FTS se configurado)
+#     # Base.metadata.create_all(bind=engine) 
+#     create_admin_user()
