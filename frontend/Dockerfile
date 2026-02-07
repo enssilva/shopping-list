@@ -26,6 +26,10 @@ CMD ["quasar", "dev", "-m", "pwa", "--port", "9000", "--hostname", "0.0.0.0"]
 
 # Estágio de Produção
 FROM base AS build-stage
+# 1. Declara que aceitamos este argumento vindo do GitHub Actions/Docker Compose
+ARG VITE_API_URL
+# 2. Transforma o argumento em variável de ambiente para o build do Node.js
+ENV VITE_API_URL=$VITE_API_URL
 RUN quasar build -m pwa
 
 FROM nginx:alpine AS production
