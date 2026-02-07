@@ -7,15 +7,15 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
+    # volumes:
+    #   - postgres_data_prod:/var/lib/postgresql/data
     networks:
       - grocery_network
 
   # BACKEND: Baixa a imagem pronta do seu GitHub
   backend:
     # AQUI ESTÁ A MUDANÇA: 'image' em vez de 'build'
-    image: ghcr.io/${GITHUB_USERNAME}/grocery-backend:latest
+    image: ghcr.io/${GITHUB_USERNAME}/shopping-list/grocery-backend:latest
     restart: always
     command: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
     environment:
@@ -26,17 +26,19 @@ services:
       - db
     networks:
       - grocery_network
+    volumes:
+      - media_data:/app/media  # Backend escreve aqui
 
   # FRONTEND: Baixa a imagem que já tem o Nginx + HTML compilado
   frontend:
-    image: ghcr.io/${GITHUB_USERNAME}/grocery-frontend:latest
+    image: ghcr.io/${GITHUB_USERNAME}/shopping-list/grocery-frontend:latest
     restart: always
     networks:
       - grocery_network
 
   # NGINX: Baixa sua imagem customizada (com o prod.conf embutido)
   nginx:
-    image: ghcr.io/${GITHUB_USERNAME}/grocery-gateway:latest
+    image: ghcr.io/${GITHUB_USERNAME}/shopping-list/grocery-gateway:latest
     restart: always
     ports:
       - "80:80"
@@ -46,6 +48,8 @@ services:
       - frontend
     networks:
       - grocery_network
+    volumes:
+      - media_data:/app/media:ro # Nginx lê daqui (ro = read only)
 
 networks:
   grocery_network:
@@ -53,3 +57,4 @@ networks:
 
 volumes:
   postgres_data_prod:
+  media_data: # Volume persistente para não perder fotos ao reiniciar

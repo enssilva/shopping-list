@@ -2,7 +2,7 @@ services:
   db:
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data # Volume separado para Dev
-      - ./db-init:/docker-entrypoint-initdb.d/
+      # - ./db-init:/docker-entrypoint-initdb.d/
 
   backend:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

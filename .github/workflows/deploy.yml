@@ -61,7 +61,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/grocery-frontend:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-             VITE_API_URL=https://seu-site.com/api/v1
+             VITE_API_URL=/api/v1
 
       # 3. BUILD DO GATEWAY
       - name: Build e Push Gateway
