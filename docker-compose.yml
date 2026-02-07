@@ -1,97 +1,40 @@
+version: '3.8'
 services:
-  # -------------------------------------------------------------------------
-  # DATABASE (PostgreSQL)
-  # -------------------------------------------------------------------------
   db:
     image: postgres:15-alpine
-    container_name: grocery_db
-    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
-    # ports:
-    #   - "5432:5432" # External access for DB tools (DBeaver, etc.)
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db-init:/docker-entrypoint-initdb.d/ # Mapeia a pasta de scripts
     networks:
-      - grocery_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - network_app
 
-  # -------------------------------------------------------------------------
-  # BACKEND (FastAPI)
-  # -------------------------------------------------------------------------
   backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: grocery_backend
-    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    command: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
-    volumes:
-      - media_volume:/app/media # Where Python saves product images
-    # ports:
-    #   - "8000:8000"  # TEST
-    environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      - SECRET_KEY=${SECRET_KEY}
-      - DEBUG=False
     depends_on:
       db:
-        condition: service_healthy # O backend só inicia quando o db passar no teste acima
+        condition: service_healthy
     networks:
-      - grocery_network
+      - network_app
 
-  # -------------------------------------------------------------------------
-  # FRONTEND (Quasar / Vue.js)
-  # -------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: grocery_frontend
-    # ports:
-    #   - "9000:9000"
-    # In dev mode, we run Quasar dev server for hot-reload
-    command: quasar dev -m pwa --port 9000 --hostname 0.0.0.0
-    volumes:
-      - ./frontend:/app
-      # Avoids conflict between host/container node_modules
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost/api/v1
+      # Vamos usar o "target" para diferenciar build de dev (veja o Dockerfile abaixo)
+      target: ${BUILD_TARGET:-development} 
     networks:
-      - grocery_network
+      - network_app
 
-  # -------------------------------------------------------------------------
-  # NGINX (Reverse Proxy + Image Server)
-  # -------------------------------------------------------------------------
   nginx:
     image: nginx:alpine
-    container_name: grocery_gateway
-    ports:
-      - "80:80" # Standard web port
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - media_volume:/var/www/media:ro # :ro = Read Only (Nginx only reads images)
     depends_on:
       - backend
       - frontend
     networks:
-      - grocery_network
-
-# ---------------------------------------------------------------------------
-# VOLUMES AND NETWORKS
-# ---------------------------------------------------------------------------
-volumes:
-  postgres_data: # DB persistence
-  media_volume:  # Image persistence (Shared Backend <-> Nginx)
+      - network_app
 
 networks:
-  grocery_network:
+  network_app:
     driver: bridge
