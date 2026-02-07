@@ -5,8 +5,8 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Variáveis de ambiente para o Python (não gerar arquivos .pyc e logs imediatos)
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Instala dependências do sistema (necessário para compilar certas libs)
 RUN apt-get update && apt-get install -y \
