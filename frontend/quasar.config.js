@@ -73,7 +73,7 @@ export default defineConfig((/* ctx */) => {
           hmr: {
             protocol: 'ws',
             host: 'localhost',
-            clientPort: 80, // O navegador conecta na porta 80
+            clientPort: 8080, // O navegador conecta na porta 80
             // port: 9000 // O Vite escuta na 9000 (padrão, não precisa forçar aqui se o server.port já for 9000)
           },
           
