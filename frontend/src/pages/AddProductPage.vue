@@ -13,7 +13,6 @@
       </q-btn>
       <div class="text-h5">Add Product</div>
     </div>
-    <div class="text-h5 q-mb-md">Add Product</div>
 
     <q-form ref="myForm" @submit="saveAll" class="q-gutter-md">
       
@@ -45,7 +44,7 @@
           <div :class="isEanValid ? 'text-positive' : 'text-negative'" class="text-subtitle2">
             Barcode: {{ scannedBarcode }} 
             <q-icon :name="isEanValid ? 'check_circle' : 'warning'" />
-            <span v-if="!isEanValid" class="q-ml-xs">(Invalid EAN-13 check digit)</span>
+            <span v-if="!isEanValid" class="q-ml-xs">(Invalid barcode check digit)</span>
           </div>
 
           <q-input
@@ -100,6 +99,7 @@ import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 import BarcodeScanner from 'src/components/BarcodeScanner.vue'
+import { isValidGtinCheckDigit } from 'src/utils/barcode'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router' // Adicione o hook
 
 const $q = useQuasar()
@@ -124,17 +124,8 @@ const productForm = ref({
 const route = useRoute()
 const router = useRouter()
 
-// Validação EAN-13
-const isEanValid = computed(() => {
-  const code = scannedBarcode.value
-  if (!code || code.length !== 13) return false
-  
-  const digits = code.split('').map(Number)
-  const lastDigit = digits.pop()
-  const sum = digits.reduce((acc, digit, idx) => acc + (idx % 2 === 0 ? digit : digit * 3), 0)
-  const calculatedCheckDigit = (10 - (sum % 10)) % 10
-  return lastDigit === calculatedCheckDigit
-})
+// Validação EAN-8, UPC-A e EAN-13
+const isEanValid = computed(() => isValidGtinCheckDigit(scannedBarcode.value))
 
 const scannerRef = ref(null)
 

@@ -17,7 +17,7 @@
   "dependencies": {
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
-    "html5-qrcode": "^2.3.8",
+    "barcode-detector": "^3.2.4",
     "jsbarcode": "^3.12.3",
     "pinia": "^2.3.1",
     "quasar": "^2.16.0",
