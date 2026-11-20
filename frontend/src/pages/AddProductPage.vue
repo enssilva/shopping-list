@@ -14,7 +14,7 @@
       <div class="text-h5">Add Product</div>
     </div>
 
-    <q-form ref="myForm" @submit="saveAll" class="q-gutter-md">
+    <q-form ref="myForm" @submit="saveAll" class="q-gutter-y-md">
       
       <q-select
         v-model="selectedList"
@@ -39,7 +39,7 @@
       </div>
 
       <q-card v-if="scannedBarcode || productExists" flat bordered>
-        <q-card-section class="q-gutter-md">
+        <q-card-section class="q-gutter-y-md">
           
           <div :class="isEanValid ? 'text-positive' : 'text-negative'" class="text-subtitle2">
             Barcode: {{ scannedBarcode }} 

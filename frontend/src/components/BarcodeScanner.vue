@@ -76,7 +76,7 @@
     />
 
     <!-- Action Buttons -->
-    <div class="q-gutter-y-sm q-mt-md">
+    <div class="q-mt-md">
       <div class="row q-col-gutter-sm">
         <div class="col-12 col-sm-7">
           <q-btn
@@ -746,8 +746,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .barcode-scanner {
+  width: 100%;
   max-width: 500px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .scanner-viewport {
