@@ -2,7 +2,6 @@ services:
   db:
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data # Volume separado para Dev
-      # - ./db-init:/docker-entrypoint-initdb.d/
 
   backend:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -10,8 +9,11 @@ services:
       - ./backend:/app # Hot-reload do Python
       - media_volume_dev:/app/media
     environment:
-      - DEBUG=True
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
 
   frontend:
     command: quasar dev -m pwa --port 9000 --hostname 0.0.0.0
