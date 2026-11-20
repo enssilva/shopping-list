@@ -62,7 +62,7 @@
           <q-btn flat round dense icon="close" v-close-popup />
         </q-toolbar>
 
-        <q-card-section class="flex justify-center q-pa-md bg-grey-1">
+        <q-card-section class="flex justify-center q-pa-md bg-white">
           <div class="text-center">
             <div class="text-caption q-mb-xs">Digital Barcode</div>
             <BarcodeGenerator :value="selectedProduct?.barcode" />
