@@ -21,7 +21,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8080/api/v1 # Porta 8080 para Dev
+      - VITE_API_URL=/api/v1 # Caminho relativo via proxy Nginx (funciona em localhost e IP da rede)
     stop_grace_period: 2s # Se não fechar em 2s, mata logo.
 
   nginx:

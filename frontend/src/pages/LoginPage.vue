@@ -88,9 +88,12 @@ async function handleLogin() {
     router.push(redirectTo)
   } catch (error) {
     console.error('Login error:', error)
+    const isUnauthorized = error.response?.status === 401
     $q.notify({
       color: 'negative',
-      message: 'Falha na autenticação. Verifique seu e-mail e senha.',
+      message: isUnauthorized
+        ? 'Falha na autenticação. Verifique seu e-mail e senha.'
+        : 'Não foi possível conectar ao servidor. Verifique sua conexão.',
       icon: 'warning',
       position: 'top'
     })
